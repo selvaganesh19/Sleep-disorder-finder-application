@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sleep Disorder Prediction</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛌</text></svg>">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -135,10 +136,42 @@
       background-size: 16px;
       padding-right: 40px;
     }
+
+    .connection-status {
+      background: #e9ecef;
+      padding: 10px 20px;
+      text-align: center;
+      font-size: 0.9em;
+      color: #666;
+    }
+
+    .connection-status.connected {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .connection-status.error {
+      background: #f8d7da;
+      color: #721c24;
+    }
+
+    .timeout-warning {
+      background: #fff3cd;
+      border: 1px solid #ffeaa7;
+      color: #856404;
+      padding: 15px;
+      border-radius: 8px;
+      margin: 10px 0;
+      font-size: 0.9em;
+    }
   </style>
 </head>
 <body>
   <div class="container">
+    <div id="connection-status" class="connection-status">
+      🔄 Connecting to AI model...
+    </div>
+
     <header>
       <h1>Sleep Disorder Prediction System</h1>
       <p>Based on Top 5 Most Important Features</p>
@@ -240,16 +273,50 @@
     import { Client } from "https://cdn.jsdelivr.net/npm/@gradio/client/dist/index.min.js";
 
     let client;
+    let clientInfo = null;
+    const statusDiv = document.getElementById("connection-status");
 
     window.onload = async () => {
       try {
-        // Connect to your Sleep Disorder Prediction Hugging Face Space
+        statusDiv.textContent = "🔄 Connecting to AI model...";
+        statusDiv.className = "connection-status";
+        
+        // Connect with longer timeout
         client = await Client.connect("selva1909/Sleep-disorder-prediction");
+        
+        // Get client info to understand available endpoints
+        try {
+          clientInfo = await client.view_api();
+          console.log("📋 Available endpoints:", clientInfo);
+        } catch (e) {
+          console.log("⚠️ Could not fetch API info:", e);
+        }
+        
         console.log("✅ Connected to Sleep Disorder Prediction model");
+        statusDiv.textContent = "✅ Connected to AI model successfully!";
+        statusDiv.className = "connection-status connected";
+        
+        // Hide status after 3 seconds
+        setTimeout(() => {
+          statusDiv.style.display = "none";
+        }, 3000);
+        
       } catch (error) {
         console.error("❌ Failed to connect to Gradio client:", error);
+        statusDiv.textContent = "❌ Failed to connect to AI model. Please refresh the page.";
+        statusDiv.className = "connection-status error";
       }
     };
+
+    // Timeout wrapper for promises
+    function withTimeout(promise, timeoutMs = 30000) {
+      return Promise.race([
+        promise,
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error(`Request timed out after ${timeoutMs}ms`)), timeoutMs)
+        )
+      ]);
+    }
 
     async function analyzeSleep() {
       const gender = document.getElementById("gender").value;
@@ -291,15 +358,64 @@
           gender, bmi, bp, occupation, heartRate
         });
 
-        // Call the predict function from your Gradio app
-        const result = await client.predict("/predict", [
-          gender,        // Gender
-          bmi,          // BMI Category  
-          bp,           // Blood Pressure
-          occupation,   // Occupation
-          heartRate     // Heart Rate
-        ]);
+        // Show timeout warning after 10 seconds
+        const timeoutWarning = setTimeout(() => {
+          resultDiv.innerHTML = `
+            <div class="timeout-warning">
+              ⏳ The model is taking longer than usual to respond. This may be due to:
+              <ul style="margin: 10px 0; padding-left: 20px;">
+                <li>Cold start (model waking up)</li>
+                <li>High server load</li>
+                <li>Network connectivity</li>
+              </ul>
+              Please wait a moment longer...
+            </div>
+            <span class="loading-spinner"></span>Still processing...
+          `;
+        }, 10000);
 
+        // Try multiple endpoint methods
+        let result;
+        try {
+          // Method 1: Try with named parameters (object)
+          console.log("🔄 Trying method 1: Named parameters...");
+          result = await withTimeout(
+            client.predict("/predict_sleep_disorder", {
+              gender: gender,
+              bmi_category: bmi,
+              blood_pressure: bp,
+              occupation: occupation,
+              heart_rate: heartRate
+            }),
+            30000
+          );
+        } catch (error1) {
+          console.log("⚠️ Method 1 failed:", error1.message);
+          
+          try {
+            // Method 2: Try with positional parameters (array)
+            console.log("🔄 Trying method 2: Positional parameters...");
+            result = await withTimeout(
+              client.predict("/predict_sleep_disorder", [
+                gender, bmi, bp, occupation, heartRate
+              ]),
+              30000
+            );
+          } catch (error2) {
+            console.log("⚠️ Method 2 failed:", error2.message);
+            
+            // Method 3: Try with index 0 (first function)
+            console.log("🔄 Trying method 3: Function index 0...");
+            result = await withTimeout(
+              client.predict(0, [
+                gender, bmi, bp, occupation, heartRate
+              ]),
+              30000
+            );
+          }
+        }
+
+        clearTimeout(timeoutWarning);
         console.log("📊 Raw result:", result);
 
         // Extract prediction from result
@@ -357,8 +473,27 @@
 
       } catch (error) {
         console.error("❌ Prediction error:", error);
+        
+        // More specific error handling
+        let errorMessage = "Unknown error occurred";
+        if (error.message.includes("timed out")) {
+          errorMessage = "Request timed out. The model may be sleeping. Please try again in a moment.";
+        } else if (error.message.includes("endpoint")) {
+          errorMessage = "Model endpoint not found. The model may be updating.";
+        } else if (error.message.includes("network")) {
+          errorMessage = "Network error. Please check your internet connection.";
+        } else {
+          errorMessage = error.message;
+        }
+        
         setTimeout(() => {
-          resultDiv.innerHTML = `<span style="color: #dc3545;">❌ Error: ${error.message}</span>`;
+          resultDiv.innerHTML = `
+            <div style="color: #dc3545; text-align: center;">
+              <strong>❌ Error: ${errorMessage}</strong>
+              <br><br>
+              <small>💡 Try refreshing the page or waiting a moment if the model is starting up.</small>
+            </div>
+          `;
           resultSection.classList.add("show");
         }, 500);
       } finally {
@@ -375,12 +510,17 @@
   </script>
 
   <script>
-    // Register service worker for PWA
+    // Register service worker for PWA (with error handling)
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
         navigator.serviceWorker.register("./sw.js")
-          .then(reg => console.log("Service Worker registered:", reg))
-          .catch(err => console.log("Service Worker registration failed:", err));
+          .then(reg => {
+            console.log("✅ Service Worker registered:", reg);
+          })
+          .catch(err => {
+            console.log("⚠️ Service Worker registration failed:", err);
+            // Don't show this error to users as it's not critical
+          });
       });
     }
   </script>
