@@ -145,9 +145,12 @@ def create_fallback_model():
         bp_encoder.fit(['120/80', '130/85', '140/90'])
         label_encoders['Blood Pressure'] = bp_encoder
         
-        # Occupation encoder
+        # Occupation encoder - ALL occupations from your dataset
         occ_encoder = LabelEncoder()
-        occ_encoder.fit(['nurse', 'doctor', 'engineer', 'teacher', 'manager'])
+        occ_encoder.fit([
+            'nurse', 'doctor', 'engineer', 'software engineer', 'scientist',
+            'teacher', 'manager', 'sales representative', 'accountant', 'lawyer'
+        ])
         label_encoders['Occupation'] = occ_encoder
         
         # Create target encoder

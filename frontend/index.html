@@ -81,7 +81,12 @@
       box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
     }
 
-    .predict-btn:disabled { background: #6c757d; cursor: not-allowed; }
+    .predict-btn:disabled { 
+      background: #6c757d; 
+      cursor: not-allowed; 
+      transform: none;
+      box-shadow: none;
+    }
 
     .result-section {
       background: #f8f9fa;
@@ -104,6 +109,32 @@
     }
 
     .loading { opacity: 0.7; pointer-events: none; }
+
+    .loading-spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #ffffff;
+      border-radius: 50%;
+      border-top-color: transparent;
+      animation: spin 1s ease-in-out infinite;
+      margin-right: 8px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Enhanced select styling for better visibility */
+    .form-group select {
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6,9 12,15 18,9'%3e%3c/polyline%3e%3c/svg%3e");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      background-size: 16px;
+      padding-right: 40px;
+    }
   </style>
 </head>
 <body>
@@ -130,13 +161,14 @@
           <label for="bp">Blood Pressure:</label>
           <select id="bp" required>
             <option value="">Select Blood Pressure</option>
-            <option value="115/75">115/75</option>
+            <option value="115/75">115/75 (Optimal)</option>
             <option value="120/80">120/80 (Normal)</option>
-            <option value="125/82">125/82</option>
-            <option value="130/85">130/85</option>
-            <option value="135/88">135/88</option>
-            <option value="140/90">140/90 (High)</option>
-            <option value="142/92">142/92</option>
+            <option value="125/82">125/82 (Pre-hypertension)</option>
+            <option value="130/85">130/85 (Elevated)</option>
+            <option value="135/88">135/88 (Stage 1 High)</option>
+            <option value="140/90">140/90 (Stage 1 Hypertension)</option>
+            <option value="142/92">142/92 (Stage 2 Hypertension)</option>
+            <option value="145/95">145/95 (High)</option>
           </select>
         </div>
 
@@ -144,22 +176,43 @@
           <label for="occupation">Occupation:</label>
           <select id="occupation" required>
             <option value="">Select Occupation</option>
-            <option value="nurse">Nurse</option>
-            <option value="doctor">Doctor</option>
-            <option value="engineer">Engineer</option>
-            <option value="teacher">Teacher</option>
-            <option value="manager">Manager</option>
-            <option value="software engineer">Software Engineer</option>
-            <option value="sales representative">Sales Representative</option>
-            <option value="accountant">Accountant</option>
-            <option value="lawyer">Lawyer</option>
-            <option value="scientist">Scientist</option>
+            
+            <!-- Healthcare Professionals -->
+            <optgroup label="🏥 Healthcare">
+              <option value="nurse">Nurse</option>
+              <option value="doctor">Doctor</option>
+            </optgroup>
+            
+            <!-- Technology & Engineering -->
+            <optgroup label="💻 Technology & Engineering">
+              <option value="engineer">Engineer</option>
+              <option value="software engineer">Software Engineer</option>
+              <option value="scientist">Scientist</option>
+            </optgroup>
+            
+            <!-- Education -->
+            <optgroup label="🎓 Education">
+              <option value="teacher">Teacher</option>
+            </optgroup>
+            
+            <!-- Business & Management -->
+            <optgroup label="💼 Business & Management">
+              <option value="manager">Manager</option>
+              <option value="sales representative">Sales Representative</option>
+              <option value="accountant">Accountant</option>
+            </optgroup>
+            
+            <!-- Legal & Other Professionals -->
+            <optgroup label="⚖️ Legal & Professional">
+              <option value="lawyer">Lawyer</option>
+            </optgroup>
           </select>
         </div>
 
         <div class="form-group">
           <label for="heartRate">Heart Rate (bpm):</label>
           <input type="number" id="heartRate" min="40" max="200" placeholder="e.g., 70" required>
+          <small style="color: #666; margin-top: 4px;">Normal resting: 60-100 bpm</small>
         </div>
 
         <div class="form-group">
@@ -190,9 +243,11 @@
 
     window.onload = async () => {
       try {
+        // Connect to your Sleep Disorder Prediction Hugging Face Space
         client = await Client.connect("selva1909/Sleep-disorder-prediction");
+        console.log("✅ Connected to Sleep Disorder Prediction model");
       } catch (error) {
-        console.error("Failed to connect to Gradio client:", error);
+        console.error("❌ Failed to connect to Gradio client:", error);
       }
     };
 
@@ -207,51 +262,107 @@
       const button = document.querySelector(".analyze-btn");
       const resultSection = document.getElementById("result");
 
+      // Validation
       if (!gender || !bmi || !bp || !occupation || isNaN(heartRate)) {
-        resultDiv.innerHTML = '<span class="emoji">⚠️</span>Please fill all fields!';
+        resultDiv.innerHTML = '<span style="color: #dc3545;">⚠️ Please fill all fields!</span>';
         resultSection.classList.add("show");
         return;
       }
 
+      // Heart rate validation
+      if (heartRate < 40 || heartRate > 200) {
+        resultDiv.innerHTML = '<span style="color: #dc3545;">⚠️ Please enter a valid heart rate (40-200 bpm)</span>';
+        resultSection.classList.add("show");
+        return;
+      }
+
+      // Show loading state
       button.disabled = true;
-      button.innerHTML = "Analyzing...";
-      resultDiv.innerHTML = "Processing your inputs...";
+      button.innerHTML = '<span class="loading-spinner"></span>Analyzing...';
+      resultDiv.innerHTML = '<span class="loading-spinner"></span>Processing your health data...';
       resultSection.classList.add("show");
 
       try {
         if (!client) {
-          throw new Error("Client not connected. Please refresh the page.");
+          throw new Error("Model not connected. Please refresh the page.");
         }
 
-        const result = await client.predict("/predict", {
-          Gender: gender,
-          BMI: bmi,
-          BP: bp,
-          Occupation: occupation,
-          HeartRate: heartRate,
+        console.log("🔍 Sending data:", {
+          gender, bmi, bp, occupation, heartRate
         });
 
-        const prediction = result.data[0];
+        // Call the predict function from your Gradio app
+        const result = await client.predict("/predict", [
+          gender,        // Gender
+          bmi,          // BMI Category  
+          bp,           // Blood Pressure
+          occupation,   // Occupation
+          heartRate     // Heart Rate
+        ]);
 
-        const disorderEmojis = {
-          "No Sleep Disorder": "✅",
-          "Insomnia": "😴",
-          "Sleep Apnea": "😮‍💨"
+        console.log("📊 Raw result:", result);
+
+        // Extract prediction from result
+        let prediction = result.data;
+        
+        // Handle different response formats
+        if (Array.isArray(prediction)) {
+          prediction = prediction[0];
+        }
+        
+        // Clean up prediction text (remove emojis if they exist)
+        if (typeof prediction === 'string') {
+          prediction = prediction.replace(/[✅😮‍💨😴🔍]/g, '').trim();
+        }
+
+        console.log("🎯 Cleaned prediction:", prediction);
+
+        // Map disorders with emojis and colors
+        const disorderInfo = {
+          "No Sleep Disorder": { emoji: "✅", color: "#28a745", message: "Great! No sleep disorder detected." },
+          "Insomnia": { emoji: "😴", color: "#fd7e14", message: "Difficulty falling or staying asleep detected." },
+          "Sleep Apnea": { emoji: "😮‍💨", color: "#dc3545", message: "Breathing interruptions during sleep detected." }
         };
 
-        const emoji = disorderEmojis[prediction] || "🤔";
+        // Find matching disorder (case-insensitive)
+        let matchedDisorder = "Unknown";
+        let disorderData = { emoji: "🤔", color: "#6c757d", message: "Unknown prediction result." };
+
+        for (const [disorder, data] of Object.entries(disorderInfo)) {
+          if (prediction.toLowerCase().includes(disorder.toLowerCase())) {
+            matchedDisorder = disorder;
+            disorderData = data;
+            break;
+          }
+        }
+
+        // If no match found, use the prediction as is
+        if (matchedDisorder === "Unknown") {
+          matchedDisorder = prediction;
+        }
 
         setTimeout(() => {
-          resultDiv.innerHTML = `<span class="emoji">${emoji}</span> Predicted Disorder: <strong>${prediction}</strong>`;
+          resultDiv.innerHTML = `
+            <div style="text-align: center;">
+              <span style="font-size: 2em;">${disorderData.emoji}</span>
+              <br><br>
+              <strong style="color: ${disorderData.color}; font-size: 1.2em;">${matchedDisorder}</strong>
+              <br><br>
+              <span style="color: #666; font-size: 0.9em;">${disorderData.message}</span>
+              ${matchedDisorder !== "No Sleep Disorder" ? '<br><br><small style="color: #dc3545;">⚕️ Please consult a healthcare professional for proper diagnosis and treatment.</small>' : ''}
+            </div>
+          `;
           resultSection.classList.add("show");
         }, 500);
 
       } catch (error) {
+        console.error("❌ Prediction error:", error);
         setTimeout(() => {
-          resultDiv.innerHTML = "❌ Error: " + error.message;
+          resultDiv.innerHTML = `<span style="color: #dc3545;">❌ Error: ${error.message}</span>`;
           resultSection.classList.add("show");
         }, 500);
       } finally {
+        // Reset button
         setTimeout(() => {
           button.disabled = false;
           button.innerHTML = "Predict Sleep Disorder";
@@ -259,6 +370,7 @@
       }
     }
 
+    // Make function globally available
     window.analyzeSleep = analyzeSleep;
   </script>
 
