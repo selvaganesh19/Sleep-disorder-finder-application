@@ -1,304 +1,276 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sleep Disorder Prediction</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sleep Disorder Prediction</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
 
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
 
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-            overflow: hidden;
-        }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 15px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      overflow: hidden;
+    }
 
-        header {
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-            color: white;
-            text-align: center;
-            padding: 30px 20px;
-        }
+    header {
+      background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+      color: white;
+      text-align: center;
+      padding: 30px 20px;
+    }
 
-        header h1 {
-            font-size: 2.5em;
-            margin-bottom: 10px;
-            font-weight: 300;
-        }
+    header h1 { font-size: 2.5em; margin-bottom: 10px; font-weight: 300; }
+    header p { font-size: 1.1em; opacity: 0.9; }
 
-        header p {
-            font-size: 1.1em;
-            opacity: 0.9;
-        }
+    .prediction-form { padding: 40px; }
 
-        .prediction-form {
-            padding: 40px;
-        }
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 25px;
+      margin-bottom: 30px;
+    }
 
-        .form-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 25px;
-            margin-bottom: 30px;
-        }
+    .form-group { display: flex; flex-direction: column; }
+    .form-group label { font-weight: 600; color: #333; margin-bottom: 8px; font-size: 0.95em; }
 
-        .form-group {
-            display: flex;
-            flex-direction: column;
-        }
+    .form-group input, .form-group select {
+      padding: 12px 15px;
+      border: 2px solid #e1e5e9;
+      border-radius: 8px;
+      font-size: 1em;
+      transition: all 0.3s ease;
+      background: #fafafa;
+    }
 
-        .form-group label {
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 8px;
-            font-size: 0.95em;
-        }
+    .form-group input:focus, .form-group select:focus {
+      outline: none;
+      border-color: #4facfe;
+      background: white;
+      box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+    }
 
-        .form-group input,
-        .form-group select {
-            padding: 12px 15px;
-            border: 2px solid #e1e5e9;
-            border-radius: 8px;
-            font-size: 1em;
-            transition: all 0.3s ease;
-            background: #fafafa;
-        }
+    .predict-btn {
+      width: 100%;
+      padding: 15px 30px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1.1em;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
 
-        .form-group input:focus,
-        .form-group select:focus {
-            outline: none;
-            border-color: #4facfe;
-            background: white;
-            box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
-        }
+    .predict-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+    }
 
-        .predict-btn {
-            width: 100%;
-            padding: 15px 30px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 1.1em;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
+    .predict-btn:disabled { background: #6c757d; cursor: not-allowed; }
 
-        .predict-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
-        }
+    .result-section {
+      background: #f8f9fa;
+      padding: 30px 40px;
+      border-top: 1px solid #e9ecef;
+      display: none;
+    }
 
-        .predict-btn:disabled {
-            background: #6c757d;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
+    .result-section.show { display: block; }
+    .result-section h2 { color: #28a745; margin-bottom: 15px; font-size: 1.5em; }
 
-        .result-section {
-            background: #f8f9fa;
-            padding: 30px 40px;
-            border-top: 1px solid #e9ecef;
-            display: none;
-        }
+    .result-content p {
+      font-size: 1.2em;
+      color: #333;
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      border-left: 4px solid #28a745;
+      margin-bottom: 10px;
+    }
 
-        .result-section.show {
-            display: block;
-        }
-
-        .result-section h2 {
-            color: #28a745;
-            margin-bottom: 15px;
-            font-size: 1.5em;
-        }
-
-        .result-content p {
-            font-size: 1.2em;
-            color: #333;
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            border-left: 4px solid #28a745;
-            margin-bottom: 10px;
-        }
-
-        .error-section {
-            background: #f8d7da;
-            color: #721c24;
-            padding: 20px 40px;
-            border-top: 1px solid #f5c6cb;
-            display: none;
-        }
-
-        .error-section.show {
-            display: block;
-        }
-
-        .loading {
-            opacity: 0.7;
-            pointer-events: none;
-        }
-    </style>
+    .loading { opacity: 0.7; pointer-events: none; }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>Sleep Disorder Prediction System</h1>
-            <p>Based on Top 5 Most Important Features</p>
-        </header>
+  <div class="container">
+    <header>
+      <h1>Sleep Disorder Prediction System</h1>
+      <p>Based on Top 5 Most Important Features</p>
+    </header>
 
-        <div class="prediction-form">
-            <form id="predictionForm" method="POST" action="/predict">
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label for="BMI Category">BMI Category (Most Important):</label>
-                        <select id="BMI Category" name="BMI Category" required>
-                            <option value="">Select BMI Category</option>
-                            <option value="normal">Normal</option>
-                            <option value="normal weight">Normal Weight</option>
-                            <option value="overweight">Overweight</option>
-                            <option value="obese">Obese</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="Blood Pressure">Blood Pressure:</label>
-                        <select id="Blood Pressure" name="Blood Pressure" required>
-                            <option value="">Select Blood Pressure</option>
-                            <option value="115/75">115/75</option>
-                            <option value="120/80">120/80 (Normal)</option>
-                            <option value="125/82">125/82</option>
-                            <option value="130/85">130/85</option>
-                            <option value="135/88">135/88</option>
-                            <option value="140/90">140/90 (High)</option>
-                            <option value="142/92">142/92</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="Occupation">Occupation:</label>
-                        <select id="Occupation" name="Occupation" required>
-                            <option value="">Select Occupation</option>
-                            <option value="nurse">Nurse</option>
-                            <option value="doctor">Doctor</option>
-                            <option value="engineer">Engineer</option>
-                            <option value="teacher">Teacher</option>
-                            <option value="manager">Manager</option>
-                            <option value="software engineer">Software Engineer</option>
-                            <option value="sales representative">Sales Representative</option>
-                            <option value="accountant">Accountant</option>
-                            <option value="lawyer">Lawyer</option>
-                            <option value="scientist">Scientist</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="Heart Rate">Heart Rate (bpm):</label>
-                        <input type="number" id="Heart Rate" name="Heart Rate" min="40" max="200" placeholder="e.g., 70" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="Gender">Gender:</label>
-                        <select id="Gender" name="Gender" required>
-                            <option value="">Select Gender</option>
-                            <option value="male">Male</option>
-                            <option value="female">Female</option>
-                        </select>
-                    </div>
-                </div>
-
-                <button type="submit" class="predict-btn">Predict Sleep Disorder</button>
-            </form>
+    <div class="prediction-form">
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="bmi">BMI Category (Most Important):</label>
+          <select id="bmi" required>
+            <option value="">Select BMI Category</option>
+            <option value="normal">Normal</option>
+            <option value="normal weight">Normal Weight</option>
+            <option value="overweight">Overweight</option>
+            <option value="obese">Obese</option>
+          </select>
         </div>
 
-        <div id="result" class="result-section">
-            <h2>🎯 Prediction Result</h2>
-            <div class="result-content">
-                <p id="prediction-text"></p>
-            </div>
+        <div class="form-group">
+          <label for="bp">Blood Pressure:</label>
+          <select id="bp" required>
+            <option value="">Select Blood Pressure</option>
+            <option value="115/75">115/75</option>
+            <option value="120/80">120/80 (Normal)</option>
+            <option value="125/82">125/82</option>
+            <option value="130/85">130/85</option>
+            <option value="135/88">135/88</option>
+            <option value="140/90">140/90 (High)</option>
+            <option value="142/92">142/92</option>
+          </select>
         </div>
 
-        <div id="error" class="error-section">
-            <h2>⚠️ Error</h2>
-            <p id="error-text"></p>
+        <div class="form-group">
+          <label for="occupation">Occupation:</label>
+          <select id="occupation" required>
+            <option value="">Select Occupation</option>
+            <option value="nurse">Nurse</option>
+            <option value="doctor">Doctor</option>
+            <option value="engineer">Engineer</option>
+            <option value="teacher">Teacher</option>
+            <option value="manager">Manager</option>
+            <option value="software engineer">Software Engineer</option>
+            <option value="sales representative">Sales Representative</option>
+            <option value="accountant">Accountant</option>
+            <option value="lawyer">Lawyer</option>
+            <option value="scientist">Scientist</option>
+          </select>
         </div>
+
+        <div class="form-group">
+          <label for="heartRate">Heart Rate (bpm):</label>
+          <input type="number" id="heartRate" min="40" max="200" placeholder="e.g., 70" required>
+        </div>
+
+        <div class="form-group">
+          <label for="gender">Gender:</label>
+          <select id="gender" required>
+            <option value="">Select Gender</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+          </select>
+        </div>
+      </div>
+
+      <button type="button" class="predict-btn analyze-btn" onclick="analyzeSleep()">Predict Sleep Disorder</button>
     </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const form = document.getElementById('predictionForm');
-            const resultSection = document.getElementById('result');
-            const errorSection = document.getElementById('error');
-            const predictionText = document.getElementById('prediction-text');
-            const errorText = document.getElementById('error-text');
-            const submitBtn = document.querySelector('.predict-btn');
+    <div id="result" class="result-section">
+      <h2>🎯 Prediction Result</h2>
+      <div class="result-content">
+        <p id="prediction-text"></p>
+      </div>
+    </div>
+  </div>
 
-            form.addEventListener('submit', function(e) {
-                e.preventDefault();
-                
-                submitBtn.textContent = 'Predicting...';
-                submitBtn.disabled = true;
-                form.classList.add('loading');
-                
-                resultSection.classList.remove('show');
-                errorSection.classList.remove('show');
+  <script type="module">
+    import { Client } from "https://cdn.jsdelivr.net/npm/@gradio/client/dist/index.min.js";
 
-                const formData = new FormData(form);
-                
-                fetch('/predict', {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        let predictionClass = '';
-                        if (data.prediction === 'No Sleep Disorder') {
-                            predictionClass = 'color: #28a745; font-weight: bold;';
-                        } else if (data.prediction === 'Sleep Apnea') {
-                            predictionClass = 'color: #dc3545; font-weight: bold;';
-                        } else if (data.prediction === 'Insomnia') {
-                            predictionClass = 'color: #fd7e14; font-weight: bold;';
-                        }
-                        
-                        predictionText.innerHTML = `<strong>Predicted Sleep Disorder:</strong> <span style="${predictionClass}">${data.prediction}</span>`;
-                        
-                        resultSection.classList.add('show');
-                    } else {
-                        errorText.textContent = data.error || 'An error occurred during prediction';
-                        errorSection.classList.add('show');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    errorText.textContent = `Error: ${error.message}`;
-                    errorSection.classList.add('show');
-                })
-                .finally(() => {
-                    submitBtn.textContent = 'Predict Sleep Disorder';
-                    submitBtn.disabled = false;
-                    form.classList.remove('loading');
-                });
-            });
+    let client;
+
+    window.onload = async () => {
+      try {
+        client = await Client.connect("selva1909/Sleep-disorder-prediction");
+      } catch (error) {
+        console.error("Failed to connect to Gradio client:", error);
+      }
+    };
+
+    async function analyzeSleep() {
+      const gender = document.getElementById("gender").value;
+      const bmi = document.getElementById("bmi").value;
+      const bp = document.getElementById("bp").value;
+      const occupation = document.getElementById("occupation").value;
+      const heartRate = parseFloat(document.getElementById("heartRate").value);
+
+      const resultDiv = document.getElementById("prediction-text");
+      const button = document.querySelector(".analyze-btn");
+      const resultSection = document.getElementById("result");
+
+      if (!gender || !bmi || !bp || !occupation || isNaN(heartRate)) {
+        resultDiv.innerHTML = '<span class="emoji">⚠️</span>Please fill all fields!';
+        resultSection.classList.add("show");
+        return;
+      }
+
+      button.disabled = true;
+      button.innerHTML = "Analyzing...";
+      resultDiv.innerHTML = "Processing your inputs...";
+      resultSection.classList.add("show");
+
+      try {
+        if (!client) {
+          throw new Error("Client not connected. Please refresh the page.");
+        }
+
+        const result = await client.predict("/predict", {
+          Gender: gender,
+          BMI: bmi,
+          BP: bp,
+          Occupation: occupation,
+          HeartRate: heartRate,
         });
-    </script>
+
+        const prediction = result.data[0];
+
+        const disorderEmojis = {
+          "No Sleep Disorder": "✅",
+          "Insomnia": "😴",
+          "Sleep Apnea": "😮‍💨"
+        };
+
+        const emoji = disorderEmojis[prediction] || "🤔";
+
+        setTimeout(() => {
+          resultDiv.innerHTML = `<span class="emoji">${emoji}</span> Predicted Disorder: <strong>${prediction}</strong>`;
+          resultSection.classList.add("show");
+        }, 500);
+
+      } catch (error) {
+        setTimeout(() => {
+          resultDiv.innerHTML = "❌ Error: " + error.message;
+          resultSection.classList.add("show");
+        }, 500);
+      } finally {
+        setTimeout(() => {
+          button.disabled = false;
+          button.innerHTML = "Predict Sleep Disorder";
+        }, 500);
+      }
+    }
+
+    window.analyzeSleep = analyzeSleep;
+  </script>
+
+  <script>
+    // Register service worker for PWA
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./sw.js")
+          .then(reg => console.log("Service Worker registered:", reg))
+          .catch(err => console.log("Service Worker registration failed:", err));
+      });
+    }
+  </script>
 </body>
 </html>
